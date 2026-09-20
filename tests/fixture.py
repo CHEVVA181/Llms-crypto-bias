@@ -1,14 +1,18 @@
 """
 ====================================================================
- fixture.py  -  the synthetic database both test modules run against
+ fixture.py  -  the synthetic database both test trees are built on
 ====================================================================
 
 One response per behaviour that has to survive the pipeline.  Small enough
 to reason about by hand, which is the point: if a number comes out wrong
 here it is obvious which case broke it.
 
-Also holds the tiny reporting helpers (`check`, `near`, `section`) so the
-two test modules print the same way and count the same way.
+Each test tree (tests/preprocessing, tests/analysis) calls build_fixture()
+with a path inside its OWN folder, so the two suites never share a database
+or an output directory and can be run in either order, or at the same time.
+
+Also holds the tiny reporting helpers (`check`, `near`, `section`) so both
+trees print the same way and count the same way.
 """
 import sqlite3
 import sys
@@ -19,9 +23,9 @@ try:                                     # Windows consoles are not utf-8
 except Exception:
     pass
 
-HERE = Path(__file__).resolve().parent
-SRC = HERE.parent / "src"
-OUT = HERE / "test_output"
+TESTS_ROOT = Path(__file__).resolve().parent
+REPO_ROOT = TESTS_ROOT.parent
+SRC = REPO_ROOT / "src"
 
 
 # ====================================================================

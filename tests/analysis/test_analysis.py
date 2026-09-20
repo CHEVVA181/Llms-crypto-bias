@@ -2,7 +2,7 @@
 ====================================================================
  TEST SUITE FOR analysis.py  -  the checks that catch a silent wrong result
 ====================================================================
-    python tests/test_analysis.py
+    python tests/analysis/test_analysis.py
 
  1 measures   Gini properties, the pygini cross-check, HHI, rank weights
  2 support    own-list vs. union support, and why the union is the headline
@@ -19,12 +19,17 @@ import traceback
 from contextlib import redirect_stdout
 from pathlib import Path
 
-from fixture import A, B, OUT, SRC, Report, build_fixture, section
+HERE = Path(__file__).resolve().parent
+sys.path.insert(0, str(HERE.parent))            # tests/ - the shared fixture
+
+from fixture import A, B, SRC, Report, build_fixture, section
 
 sys.path.insert(0, str(SRC))
 
-FIXTURE_DB = build_fixture(OUT / "fixture_analysis.db")
-FIXTURE_OUT = OUT / "fixture"
+# This tree keeps its fixture and its output to itself.
+OUT = HERE / "test_output"
+FIXTURE_OUT = OUT / "run"
+FIXTURE_DB = build_fixture(OUT / "fixture.db")
 os.environ["CRYPTO_BIAS_DB"] = str(FIXTURE_DB)
 os.environ["CRYPTO_BIAS_OUT"] = str(FIXTURE_OUT)
 os.environ["CRYPTO_BIAS_EXTRA_DBS"] = "off"

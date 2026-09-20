@@ -2,7 +2,7 @@
 ====================================================================
  TEST SUITE FOR preprocessing.py  -  everything before the statistics
 ====================================================================
-    python tests/test_preprocessing.py
+    python tests/preprocessing/test_preprocessing.py
 
  1 panel      the responses load, de-duplicate and label correctly
  2 registry   every product has a code, a category and no alias collision
@@ -14,14 +14,20 @@ Exit code 0 when every check passes, 1 otherwise.
 import os
 import sys
 import time
+from pathlib import Path
 
-from fixture import N_CELLS, N_DUPLICATES, OUT, SRC, Report, build_fixture, section
+HERE = Path(__file__).resolve().parent
+sys.path.insert(0, str(HERE.parent))            # tests/ - the shared fixture
+
+from fixture import N_CELLS, N_DUPLICATES, SRC, Report, build_fixture, section
 
 sys.path.insert(0, str(SRC))
 
-FIXTURE_DB = build_fixture(OUT / "fixture_preprocessing.db", with_duplicates=True)
+# This tree keeps its fixture and its output to itself.
+OUT = HERE / "test_output"
+FIXTURE_DB = build_fixture(OUT / "fixture.db", with_duplicates=True)
 os.environ["CRYPTO_BIAS_DB"] = str(FIXTURE_DB)
-os.environ["CRYPTO_BIAS_OUT"] = str(OUT / "preprocessing")
+os.environ["CRYPTO_BIAS_OUT"] = str(OUT / "run")
 os.environ["CRYPTO_BIAS_EXTRA_DBS"] = "off"
 
 import numpy as np                                                  # noqa: E402

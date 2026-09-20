@@ -17,7 +17,8 @@ numbers:
 ```
 src/preprocessing.py     responses in -> a clean, de-duplicated, parsed panel out
 src/analysis.py          that panel -> Gini/HHI, tables, figures, affiliation check
-tests/                   91 checks over both halves
+tests/preprocessing/     64 checks over the first half
+tests/analysis/          27 checks over the second
 ```
 
 `preprocessing.py` does the reading, the de-duplication, the prompt-attribute recovery,
@@ -30,14 +31,24 @@ right, and a parser bug is invisible once it has been averaged into a Gini coeff
 ## Layout
 
 ```
-src/preprocessing.py          loading, de-duplication, registries, amount parsing
-src/analysis.py               concentration measures, tables, figures, affiliation
-tests/fixture.py              the synthetic database both test modules run against
-tests/test_preprocessing.py   panel, registries, parsing, units      (64 checks)
-tests/test_analysis.py        Gini/HHI, support, pipeline output     (27 checks)
-tests/run_all.py              runs both and returns one exit code
-data/                         the collected responses (see below)
+src/preprocessing.py                       loading, de-duplication, registries, parsing
+src/analysis.py                            measures, tables, figures, affiliation
+
+tests/fixture.py                           the synthetic database both trees are built on
+tests/run_all.py                           runs both trees, returns one exit code
+tests/preprocessing/test_preprocessing.py  panel, registries, parsing, units  (64 checks)
+tests/preprocessing/test_output/           its fixture DB and its pipeline run
+tests/analysis/test_analysis.py            measures, support, output          (27 checks)
+tests/analysis/test_output/                its fixture DB and its pipeline run
+
+data/                                      the collected responses (see below)
 ```
+
+The two test trees are separate on purpose. Each builds its own fixture database
+inside its own folder and points `CRYPTO_BIAS_OUT` at its own output directory, so
+neither suite can read or overwrite the other's files and they can be run in any
+order, or at the same time. Only `fixture.py` is shared, and it holds no paths of its
+own — the tree that calls it decides where everything lands.
 
 ## Install
 
@@ -107,22 +118,23 @@ databases in one command.
 ## Tests
 
 ```bash
-python tests/run_all.py          # both modules
-python tests/test_preprocessing.py
-python tests/test_analysis.py
+python tests/run_all.py                          # both trees
+python tests/preprocessing/test_preprocessing.py
+python tests/analysis/test_analysis.py
 ```
 
-Both modules build a small synthetic SQLite fixture and check what comes out of it.
-Exit 0 if every check passes, 1 otherwise.
+Each tree builds a small synthetic SQLite fixture in its own folder and checks what
+comes out of it. Exit 0 if every check passes, 1 otherwise. `run_all.py` runs the two
+in separate processes and returns a single exit code.
 
-`test_preprocessing.py` covers the panel (de-duplication, model labels, prompt attributes
+`tests/preprocessing` covers the panel (de-duplication, model labels, prompt attributes
 read back out of the prompt text), the registries (no product without a category, no
 surface form mapping to two products, no shared short code), the parser (what counts as
 money and — more importantly — what has to be refused: `0.05 BTC`, `3 years`,
 `1/3 of portfolio`) and the unit logic (`40%` is a share of the money to invest, never 40
 francs).
 
-`test_analysis.py` covers the concentration measures (Gini properties, the pygini
+`tests/analysis` covers the concentration measures (Gini properties, the pygini
 cross-check over 200 random vectors, HHI, rank weights), the own-list vs. union support
 question — scoring each model on its own list reverses the ranking, which is why the
 headline Gini is computed over the union of every product any model named — and then runs
