@@ -1,0 +1,8 @@
+# Analysis pipeline
+numpy>=1.24
+pandas>=2.0
+matplotlib>=3.7
+
+# Independent Gini cross-check (optional: analysis.py degrades gracefully
+# without it, but tests/test_analysis.py skips one check if it is missing)
+pygini>=1.0
