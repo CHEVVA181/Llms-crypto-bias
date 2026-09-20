@@ -1,17 +1,19 @@
 """
 ===========================================================================
- analysis.py
+ analysis/analysis.py
 
  Everything that turns the parsed panel into a result: the concentration
  measures (Gini, HHI), the per-model and per-attribute tables, the figures
  used in the write-up, and the provider-affiliation check.
 
  Reading responses, normalising product names and reading amounts all happen
- in preprocessing.py - this module starts from what that one produced.
+ in preprocessing/preprocessing.py - this module starts from what that one
+ produced.  It is runnable from any working directory: it puts the sibling
+ preprocessing folder on sys.path itself.
 
-     python src/analysis.py                 # full pipeline + affiliation check
-     python src/analysis.py --no-affiliation
-     python src/analysis.py --affiliation-only <pipeline_output> [<dest>]
+     python analysis/analysis.py                 # pipeline + affiliation check
+     python analysis/analysis.py --no-affiliation
+     python analysis/analysis.py --affiliation-only <pipeline_output> [<dest>]
 ===========================================================================
 """
 import re
@@ -29,6 +31,9 @@ import matplotlib.pyplot as plt
 import matplotlib.colors as mcolors
 from matplotlib.patches import Patch
 from matplotlib.ticker import PercentFormatter
+
+# preprocessing lives in its own folder next to this one.
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "preprocessing"))
 
 from preprocessing import (
     ATTRIBUTES, BLUE_CHIPS, BUDGET_ORDER, DB_PATH, ENV_ORDER,

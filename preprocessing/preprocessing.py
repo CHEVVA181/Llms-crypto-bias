@@ -1,6 +1,6 @@
 """
 ===========================================================================
- preprocessing.py
+ preprocessing/preprocessing.py
 
  Everything that happens to a raw model response before any statistic is
  computed: reading the response databases, de-duplicating the panel,
@@ -9,7 +9,7 @@
  number with a unit attached.
 
  Nothing in this module measures concentration or draws anything - that is
- analysis.py.  Import it:
+ analysis/analysis.py.  Import it with this folder on sys.path:
 
      from preprocessing import load_panel, parse_amount, SCENARIO_CFG
 ===========================================================================

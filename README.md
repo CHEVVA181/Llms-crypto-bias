@@ -15,24 +15,27 @@ The code is split along the line where the data stops being text and starts bein
 numbers:
 
 ```
-src/preprocessing.py     responses in -> a clean, de-duplicated, parsed panel out
-src/analysis.py          that panel -> Gini/HHI, tables, figures, affiliation check
-tests/preprocessing/     64 checks over the first half
-tests/analysis/          27 checks over the second
+data/            the collected responses
+preprocessing/   responses in -> a clean, de-duplicated, parsed panel out
+analysis/        that panel -> Gini/HHI, tables, figures, affiliation check
+tests/           two self-contained trees, one per half
 ```
 
-`preprocessing.py` does the reading, the de-duplication, the prompt-attribute recovery,
+`preprocessing/preprocessing.py` does the reading, the de-duplication, the prompt-attribute recovery,
 the product registries and everything to do with turning `40%`, `CHF 4'000.-` or
 `5000-7000` into a number with a unit attached. It does not compute a single statistic.
-`analysis.py` starts from what that produced and never re-parses anything. Splitting it
+`analysis/analysis.py` starts from what that produced and never re-parses anything. Splitting it
 this way is mostly so the parser can be tested on its own — a lot rides on it being
 right, and a parser bug is invisible once it has been averaged into a Gini coefficient.
 
 ## Layout
 
 ```
-src/preprocessing.py                       loading, de-duplication, registries, parsing
-src/analysis.py                            measures, tables, figures, affiliation
+data/responses.db                          the main collection run
+data/responses-missing_grok.db             the Grok top-up run
+
+preprocessing/preprocessing.py             loading, de-duplication, registries, parsing
+analysis/analysis.py                       measures, tables, figures, affiliation
 
 tests/fixture.py                           the synthetic database both trees are built on
 tests/run_all.py                           runs both trees, returns one exit code
@@ -40,9 +43,11 @@ tests/preprocessing/test_preprocessing.py  panel, registries, parsing, units  (6
 tests/preprocessing/test_output/           its fixture DB and its pipeline run
 tests/analysis/test_analysis.py            measures, support, output          (27 checks)
 tests/analysis/test_output/                its fixture DB and its pipeline run
-
-data/                                      the collected responses (see below)
 ```
+
+Each folder holds one thing. `analysis/analysis.py` puts its sibling
+`preprocessing/` on `sys.path` itself, so every script here runs from any working
+directory without a `PYTHONPATH` or an install step.
 
 The two test trees are separate on purpose. Each builds its own fixture database
 inside its own folder and points `CRYPTO_BIAS_OUT` at its own output directory, so
@@ -64,7 +69,7 @@ that one audit.
 
 ```bash
 export CRYPTO_BIAS_DB=/path/to/responses.db      # default: <repo>/data/responses.db
-python src/analysis.py
+python analysis/analysis.py
 ```
 
 | Variable | Meaning | Default |
@@ -76,8 +81,8 @@ python src/analysis.py
 Flags:
 
 ```bash
-python src/analysis.py --no-affiliation                    # pipeline only
-python src/analysis.py --affiliation-only crypto_bias_output   # affiliation only
+python analysis/analysis.py --no-affiliation                   # pipeline only
+python analysis/analysis.py --affiliation-only crypto_bias_output  # affiliation only
 ```
 
 A top-up database is just for backfilling prompts a model missed on the first collection
@@ -102,7 +107,7 @@ bootstrap with a fixed seed, so it's reproducible if you rerun it.
 
 ## Data
 
-`data/responses.db` is the main collection: a `responses` table with one row per
+Both databases live in `data/`. `data/responses.db` is the main collection: a `responses` table with one row per
 (scenario, condition, model, prompt) cell, holding the prompt as sent and the answer as
 returned. `data/responses-missing_grok.db` is a top-up run that backfills the prompts
 Grok missed the first time; it is picked up automatically.
