@@ -18,6 +18,7 @@ numbers:
 data/            the collected responses
 preprocessing/   responses in -> a clean, de-duplicated, parsed panel out
 analysis/        that panel -> Gini/HHI, tables, figures, affiliation check
+outputs/         the committed result of one full run
 tests/           two self-contained trees, one per half
 ```
 
@@ -36,6 +37,13 @@ data/responses-missing_grok.db             the Grok top-up run
 
 preprocessing/preprocessing.py             loading, de-duplication, registries, parsing
 analysis/analysis.py                       measures, tables, figures, affiliation
+
+outputs/tokens/                            the tokens scenario: CSVs + figures/
+outputs/exchanges/                         the exchanges scenario: CSVs + figures/
+outputs/figures/                           fig7, tokens vs exchanges side by side
+outputs/affiliation/                       the provider-affiliation check
+outputs/cross_scenario_gini.csv            both scenarios in one table
+outputs/data_sources.csv                   per-model row count of every source db
 
 tests/fixture.py                           the synthetic database both trees are built on
 tests/run_all.py                           runs both trees, returns one exit code
@@ -76,29 +84,30 @@ python analysis/analysis.py
 | --- | --- | --- |
 | `CRYPTO_BIAS_DB` | SQLite file with the `responses` table | `<repo>/data/responses.db` |
 | `CRYPTO_BIAS_EXTRA_DBS` | Top-up databases, `os.pathsep`-separated. `off` / `none` disables auto-discovery | auto: `responses-missing*.db` next to the main DB |
-| `CRYPTO_BIAS_OUT` | Output root | `<db folder>/crypto_bias_output` |
+| `CRYPTO_BIAS_OUT` | Output root | `<repo>/outputs` |
 
 Flags:
 
 ```bash
 python analysis/analysis.py --no-affiliation                   # pipeline only
-python analysis/analysis.py --affiliation-only crypto_bias_output  # affiliation only
+python analysis/analysis.py --affiliation-only outputs             # affiliation only
 ```
 
 A top-up database is just for backfilling prompts a model missed on the first collection
 run. Rows are matched on `(scenario, condition, model, prompt index)` rather than the raw
 id, so re-running an already-present prompt gets dropped instead of duplicated.
-`data_sources.csv` in the output keeps a per-model row count of every file that
+`outputs/data_sources.csv` keeps a per-model row count of every file that
 contributed, in case you need to check where a number came from.
 
-The pipeline writes one folder per scenario (`tokens/`, `exchanges/`), each with about 20
-CSVs and 7 figures, plus a `cross_scenario_gini.csv` and a `README.txt` at the output root
-listing everything it just wrote.
+The pipeline writes one folder per scenario (`tokens/`, `exchanges/`), each with 16
+CSVs and 7 figures, plus `cross_scenario_gini.csv`, `data_sources.csv` and the
+scenario-comparison figure at the output root. A full run is 71 files, about 12 MB.
+Every figure is written twice, `.png` for reading and `.pdf` for the write-up.
 
 ### Provider-affiliation check
 
 This one runs on the pipeline's output, not on the raw database, so by default it happens
-at the end of a full run and lands in `crypto_bias_output/affiliation`. It checks whether
+at the end of a full run and lands in `outputs/affiliation`. It checks whether
 a model over-recommends assets or exchanges tied to its own corporate parent (or a
 controlling principal of that parent). Every affiliation used here is a publicly
 disclosed ownership or partnership fact that predates the collection window — nothing
@@ -117,8 +126,12 @@ exchanges scenario. The 719 comes from the attribute combinations: budget (8 val
 risk tolerance (3), investment term (3) and market environment (4), crossed in the
 conditions the study varies, plus the bare no-attribute prompt.
 
-Generated output (`crypto_bias_output/`) is not tracked — it is reproducible from the
-databases in one command.
+## Output
+
+`outputs/` is the committed result of one full run over both databases, so the figures and
+tables in the write-up can be traced to a file here without running anything. It is also
+reproducible from the databases in one command — a rerun overwrites it in place, and the
+numbers are deterministic (the affiliation bootstrap uses a fixed seed).
 
 ## Tests
 

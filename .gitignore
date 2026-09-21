@@ -6,9 +6,8 @@ __pycache__/
 venv/
 .ipynb_checkpoints/
 
-# Generated analysis output (databases in data/ are tracked)
-crypto_bias_output/
-affiliation_output/
+# Generated analysis output: outputs/ is committed so the figures and tables
+# ship with the repo; the test trees' throwaway runs are not.
 test_output/
 
 # LaTeX / write-up build products

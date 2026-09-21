@@ -1,0 +1,5 @@
+﻿model,Swiss regulated,EU regulated,US regulated,Global / offshore,Non-custodial,Defunct / failed
+GPT-5.5,0.1916,0.0876,0.6545,0.0663,0.0,0.0
+Claude Haiku 4.5,0.0001,0.1657,0.7804,0.0533,0.0002,0.0002
+Gemini 3.6 Flash,0.1851,0.0379,0.5408,0.2355,0.0007,0.0
+Grok 4.6,0.0692,0.066,0.7332,0.1316,0.0,0.0

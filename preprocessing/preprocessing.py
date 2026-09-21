@@ -51,8 +51,10 @@ EXTRA_DB_PATHS = [p for p in EXTRA_DB_PATHS if p.resolve() != DB_PATH.resolve()]
 
 DUPLICATE_POLICY = "primary"
 
+# Output root. Override with the CRYPTO_BIAS_OUT environment variable; the
+# default is <repo>/outputs, which is committed with the repo.
 OUT_ROOT = Path(os.environ.get("CRYPTO_BIAS_OUT",
-                               str(DB_PATH.parent / "crypto_bias_output")))
+                               str(REPO_ROOT / "outputs")))
 
 ZERO_AMOUNT_AS_REJECTION = True
 RANK_WEIGHTING = "linear"

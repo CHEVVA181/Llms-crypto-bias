@@ -1,0 +1,5 @@
+﻿model,US-listed CEX,EU-regulated CEX,Swiss bank/broker,Global CEX,Derivatives venue,CeFi lending,Non-custodial/brokerage,On-chain / DEX,Defunct
+GPT-5.5,0.6545,0.0876,0.1916,0.0663,0.0,0.0,0.0,0.0,0.0
+Claude Haiku 4.5,0.7804,0.1657,0.0001,0.053,0.0001,0.0001,0.0001,0.0001,0.0002
+Gemini 3.6 Flash,0.5408,0.0379,0.1851,0.2355,0.0,0.0,0.0,0.0007,0.0
+Grok 4.6,0.7332,0.066,0.0692,0.1316,0.0,0.0,0.0,0.0,0.0

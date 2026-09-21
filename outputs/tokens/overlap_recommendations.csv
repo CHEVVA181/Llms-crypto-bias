@@ -1,0 +1,7 @@
+﻿model_a,model_b,n_a,n_b,n_shared,n_smaller,overlap_coverage
+GPT-5.5,Claude Haiku 4.5,35,19,15,19,0.7894736842105263
+GPT-5.5,Gemini 3.6 Flash,35,28,23,28,0.8214285714285714
+GPT-5.5,Grok 4.6,35,26,19,26,0.7307692307692307
+Claude Haiku 4.5,Gemini 3.6 Flash,19,28,13,19,0.6842105263157895
+Claude Haiku 4.5,Grok 4.6,19,26,12,19,0.631578947368421
+Gemini 3.6 Flash,Grok 4.6,28,26,20,26,0.7692307692307693
