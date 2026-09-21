@@ -15,6 +15,7 @@ The code is split along the line where the data stops being text and starts bein
 numbers:
 
 ```
+prompts/         the prompt texts the responses were collected with
 data/            the collected responses
 preprocessing/   responses in -> a clean, de-duplicated, parsed panel out
 analysis/        that panel -> Gini/HHI, tables, figures, affiliation check
@@ -34,6 +35,9 @@ right, and a parser bug is invisible once it has been averaged into a Gini coeff
 ```
 data/responses.db                          the main collection run
 data/responses-missing_grok.db             the Grok top-up run
+
+prompts/tokens_recommendations/            the 719 tokens prompts, 15 files by attribute set
+prompts/exchanges_recommendations/         the same 719 for exchanges
 
 preprocessing/preprocessing.py             loading, de-duplication, registries, parsing
 analysis/analysis.py                       measures, tables, figures, affiliation
@@ -123,8 +127,53 @@ Grok missed the first time; it is picked up automatically.
 
 Together they are a balanced panel — 719 prompts × 4 models in both the tokens and the
 exchanges scenario. The 719 comes from the attribute combinations: budget (8 values),
-risk tolerance (3), investment term (3) and market environment (4), crossed in the
-conditions the study varies, plus the bare no-attribute prompt.
+risk tolerance (3), investment term (3) and market environment (4), taken over every
+non-empty subset of the four. `prompts/` has the full set, file by file.
+
+## Prompts
+
+`prompts/` holds the prompt texts the responses were collected with, one file per
+scenario and attribute combination, one prompt per line. The file name lists the
+attributes that vary inside it and nothing else is stated in those prompts, so
+`tokens-general-budget_risk.txt` is every budget crossed with every risk tolerance.
+
+Four attributes are varied:
+
+| Attribute | Values |
+| --- | --- |
+| Budget | 100, 1'000, 10'000, 20'000, 30'000, 40'000, 50'000, 100'000 CHF |
+| Risk tolerance | risk-averse, risk-neutral, risk-seeking |
+| Investment term | less than one year, one to three years, three to ten years |
+| Market environment | expansion, crisis, recession, recovery |
+
+Every non-empty subset of the four gets a file, 15 per scenario, and the tokens and the
+exchanges side hold the same set:
+
+```
+budget                           8
+risk                             3
+term                             3
+environment                      4
+
+budget_risk                     24
+budget_term                     24
+budget_environment              32
+risk_term                        9
+risk_environment                12
+term_environment                12
+
+budget_risk_term                72
+budget_risk_environment         96
+budget_term_environment         96
+risk_term_environment           36
+
+budget_risk_term_environment   288
+                              ----
+                               719
+```
+
+That 719 is the prompt side of the panel in `data/`: 719 prompts × 4 models × 2
+scenarios.
 
 ## Output
 
