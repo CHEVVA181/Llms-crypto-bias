@@ -7,128 +7,51 @@ extends the concentration methodology from Zhi et al. (2025), applied to crypto.
 
 I asked four models — GPT-5.5, Claude Haiku 4.5, Gemini 3.6 Flash and Grok 4.6 — a big
 batch of CHF-denominated prompts about which crypto tokens to buy and which exchanges to
-use. This repo is the code that turns those raw responses into concentration stats, the
-figures used in the write-up, and a check for whether a model favors products tied to
-its own corporate parent.
+use. The question is how concentrated those recommendations are: whether a handful of
+products absorb most of the money and most of the mentions, whether that changes with
+the budget, the risk tolerance, the term or the market environment, and whether a model
+favors products tied to its own corporate parent.
 
-The code is split along the line where the data stops being text and starts being
-numbers:
+## Methodology
 
-```
-prompts/         the prompt texts the responses were collected with
-data/            the collected responses
-preprocessing/   responses in -> a clean, de-duplicated, parsed panel out
-analysis/        that panel -> Gini/HHI, tables, figures, affiliation check
-outputs/         the committed result of one full run
-tests/           two self-contained trees, one per half
-```
+### Collection
 
-`preprocessing/preprocessing.py` does the reading, the de-duplication, the prompt-attribute recovery,
-the product registries and everything to do with turning `40%`, `CHF 4'000.-` or
-`5000-7000` into a number with a unit attached. It does not compute a single statistic.
-`analysis/analysis.py` starts from what that produced and never re-parses anything. Splitting it
-this way is mostly so the parser can be tested on its own — a lot rides on it being
-right, and a parser bug is invisible once it has been averaged into a Gini coefficient.
+Every model saw the same prompt set, in two scenarios: which tokens to invest in, and
+which exchanges to use. The prompts vary four attributes — budget, risk tolerance,
+investment term and market environment — over every non-empty subset of the four, which
+is 719 prompts per scenario. Four models across both scenarios makes a balanced panel of
+719 × 4 × 2 responses, one row per (scenario, condition, model, prompt) cell holding the
+prompt as sent and the answer as returned. A top-up run backfills the prompts Grok
+missed on the first pass; rows are matched on (scenario, condition, model, prompt index)
+rather than the raw id, so a prompt that is already present gets dropped instead of
+duplicated.
 
-## Layout
+### Parsing
 
-```
-data/responses.db                          the main collection run
-data/responses-missing_grok.db             the Grok top-up run
+Nothing is measured until the text is a number with a unit attached. De-duplication, the
+prompt-attribute recovery, the product registries and the amount parsing all happen
+first, and the parser refuses more than it accepts: `40%` is a share of the money to
+invest and never 40 francs, while `0.05 BTC`, `3 years` and `1/3 of portfolio` are
+rejected rather than guessed at. Surface forms collapse onto one product — `Bitcoin` and
+`BTC` are one row, `Kraken Pro` folds into Kraken — and a zero allocation counts as a
+rejection, not a recommendation. Parsing is kept strictly apart from measurement,
+because a parser bug is invisible once it has been averaged into a Gini coefficient.
 
-prompts/tokens_recommendations/            the 719 tokens prompts, 15 files by attribute set
-prompts/exchanges_recommendations/         the same 719 for exchanges
+### Measures
 
-preprocessing/preprocessing.py             loading, de-duplication, registries, parsing
-analysis/analysis.py                       measures, tables, figures, affiliation
-
-outputs/tokens/                            the tokens scenario: CSVs + figures/
-outputs/exchanges/                         the exchanges scenario: CSVs + figures/
-outputs/figures/                           fig7, tokens vs exchanges side by side
-outputs/affiliation/                       the provider-affiliation check
-outputs/cross_scenario_gini.csv            both scenarios in one table
-outputs/data_sources.csv                   per-model row count of every source db
-
-tests/fixture.py                           the synthetic database both trees are built on
-tests/run_all.py                           runs both trees, returns one exit code
-tests/preprocessing/test_preprocessing.py  panel, registries, parsing, units  (64 checks)
-tests/preprocessing/test_output/           its fixture DB and its pipeline run
-tests/analysis/test_analysis.py            measures, support, output          (27 checks)
-tests/analysis/test_output/                its fixture DB and its pipeline run
-```
-
-Each folder holds one thing. `analysis/analysis.py` puts its sibling
-`preprocessing/` on `sys.path` itself, so every script here runs from any working
-directory without a `PYTHONPATH` or an install step.
-
-The two test trees are separate on purpose. Each builds its own fixture database
-inside its own folder and points `CRYPTO_BIAS_OUT` at its own output directory, so
-neither suite can read or overwrite the other's files and they can be run in any
-order, or at the same time. Only `fixture.py` is shared, and it holds no paths of its
-own — the tree that calls it decides where everything lands.
-
-## Install
-
-```bash
-pip install -r requirements.txt
-```
-
-Needs Python 3.11+. `pygini` is only there to sanity-check the hand-written Gini formula
-against a known-good implementation; the pipeline runs fine without it and just skips
-that one audit.
-
-## Running the pipeline
-
-```bash
-export CRYPTO_BIAS_DB=/path/to/responses.db      # default: <repo>/data/responses.db
-python analysis/analysis.py
-```
-
-| Variable | Meaning | Default |
-| --- | --- | --- |
-| `CRYPTO_BIAS_DB` | SQLite file with the `responses` table | `<repo>/data/responses.db` |
-| `CRYPTO_BIAS_EXTRA_DBS` | Top-up databases, `os.pathsep`-separated. `off` / `none` disables auto-discovery | auto: `responses-missing*.db` next to the main DB |
-| `CRYPTO_BIAS_OUT` | Output root | `<repo>/outputs` |
-
-Flags:
-
-```bash
-python analysis/analysis.py --no-affiliation                   # pipeline only
-python analysis/analysis.py --affiliation-only outputs             # affiliation only
-```
-
-A top-up database is just for backfilling prompts a model missed on the first collection
-run. Rows are matched on `(scenario, condition, model, prompt index)` rather than the raw
-id, so re-running an already-present prompt gets dropped instead of duplicated.
-`outputs/data_sources.csv` keeps a per-model row count of every file that
-contributed, in case you need to check where a number came from.
-
-The pipeline writes one folder per scenario (`tokens/`, `exchanges/`), each with 16
-CSVs and 7 figures, plus `cross_scenario_gini.csv`, `data_sources.csv` and the
-scenario-comparison figure at the output root. A full run is 71 files, about 12 MB.
-Every figure is written twice, `.png` for reading and `.pdf` for the write-up.
+Concentration is Gini and HHI, with rank weights for where in the list a product was
+named. The headline Gini is computed over the union of every product any model named,
+not over each model's own list: scoring each model only on the products it happened to
+name reverses the ranking, which makes the union the honest denominator. The hand-written
+Gini is cross-checked against a known-good implementation over random vectors.
 
 ### Provider-affiliation check
 
-This one runs on the pipeline's output, not on the raw database, so by default it happens
-at the end of a full run and lands in `outputs/affiliation`. It checks whether
-a model over-recommends assets or exchanges tied to its own corporate parent (or a
-controlling principal of that parent). Every affiliation used here is a publicly
-disclosed ownership or partnership fact that predates the collection window — nothing
-inferred after the fact from the responses themselves. Significance is a 10,000-draw
-bootstrap with a fixed seed, so it's reproducible if you rerun it.
-
-## Data
-
-Both databases live in `data/`. `data/responses.db` is the main collection: a `responses` table with one row per
-(scenario, condition, model, prompt) cell, holding the prompt as sent and the answer as
-returned. `data/responses-missing_grok.db` is a top-up run that backfills the prompts
-Grok missed the first time; it is picked up automatically.
-
-Together they are a balanced panel — 719 prompts × 4 models in both the tokens and the
-exchanges scenario. The 719 comes from the attribute combinations: budget (8 values),
-risk tolerance (3), investment term (3) and market environment (4), taken over every
-non-empty subset of the four. `prompts/` has the full set, file by file.
+The last step asks whether a model over-recommends assets or exchanges tied to its own
+corporate parent, or to a controlling principal of that parent. Every affiliation used
+is a publicly disclosed ownership or partnership fact that predates the collection
+window — nothing inferred after the fact from the responses themselves. Significance is
+a 10,000-draw bootstrap with a fixed seed, so the result is reproducible.
 
 ## Prompts
 
@@ -171,44 +94,6 @@ budget_risk_term_environment   288
                               ----
                                719
 ```
-
-That 719 is the prompt side of the panel in `data/`: 719 prompts × 4 models × 2
-scenarios.
-
-## Output
-
-`outputs/` is the committed result of one full run over both databases, so the figures and
-tables in the write-up can be traced to a file here without running anything. It is also
-reproducible from the databases in one command — a rerun overwrites it in place, and the
-numbers are deterministic (the affiliation bootstrap uses a fixed seed).
-
-## Tests
-
-```bash
-python tests/run_all.py                          # both trees
-python tests/preprocessing/test_preprocessing.py
-python tests/analysis/test_analysis.py
-```
-
-Each tree builds a small synthetic SQLite fixture in its own folder and checks what
-comes out of it. Exit 0 if every check passes, 1 otherwise. `run_all.py` runs the two
-in separate processes and returns a single exit code.
-
-`tests/preprocessing` covers the panel (de-duplication, model labels, prompt attributes
-read back out of the prompt text), the registries (no product without a category, no
-surface form mapping to two products, no shared short code), the parser (what counts as
-money and — more importantly — what has to be refused: `0.05 BTC`, `3 years`,
-`1/3 of portfolio`) and the unit logic (`40%` is a share of the money to invest, never 40
-francs).
-
-`tests/analysis` covers the concentration measures (Gini properties, the pygini
-cross-check over 200 random vectors, HHI, rank weights), the own-list vs. union support
-question — scoring each model on its own list reverses the ranking, which is why the
-headline Gini is computed over the union of every product any model named — and then runs
-the whole pipeline over the fixture and checks the output: percentages and CHF amounts
-give identical shares, a refusal yields no product, `Bitcoin` and `BTC` collapse into one
-row, `Kraken Pro` folds into Kraken, a zero allocation is a rejection, and every
-response's shares sum to 1.
 
 ## Reference
 
