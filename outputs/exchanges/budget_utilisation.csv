@@ -1,0 +1,5 @@
+﻿model,n,median,mean,within_tol,over_budget,n_over_1,min,max
+GPT-5.5,640,1.0,1.0,1.0,0.0,0,1.0,1.0
+Claude Haiku 4.5,634,1.0,1.0,1.0,0.0,0,1.0,1.0
+Gemini 3.6 Flash,633,1.0,1.0,1.0,0.0,0,1.0,1.0
+Grok 4.6,633,1.0,1.0,1.0,0.0,0,1.0,1.0

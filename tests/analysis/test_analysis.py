@@ -43,7 +43,7 @@ R = Report()
 
 # ====================================================================
 def s_measures():
-    section("[1/4]  MEASURES   Gini properties, the package cross-check, HHI")
+    section("[1/5]  MEASURES   Gini properties, the package cross-check, HHI")
     R.near(an.gini_paper([1, 1, 1, 1]), 0.0, "a perfectly equal split scores 0")
     R.near(an.gini_paper([1, 0, 0, 0]), 0.75, "one winner out of 4 scores (n-1)/n")
     R.near(an.gini_paper([3, 1, 7]), an.gini_paper([30, 10, 70]),
@@ -72,7 +72,7 @@ def s_measures():
 
 
 def s_support():
-    section("[2/4]  SUPPORT   scoring a model on its own list flips the ranking")
+    section("[2/5]  SUPPORT   scoring a model on its own list flips the ranking")
     # this is the reason the headline Gini is computed over the union of all
     # products any model named, zero-filled per model
     narrow, union = pd.Series({"BTC": .6, "ETH": .4}), ["BTC", "ETH", "SOL", "LINK"]
@@ -88,7 +88,7 @@ def s_support():
 
 
 def s_run():
-    section("[3/4]  FIXTURE RUN   analysis.py runs end to end")
+    section("[3/5]  FIXTURE RUN   analysis.py runs end to end")
     buf, t0 = io.StringIO(), time.time()
     try:
         with redirect_stdout(buf):
@@ -109,7 +109,7 @@ def s_run():
 
 
 def s_output(results):
-    section("[4/4]  OUTPUT   what the pipeline made of the fixture")
+    section("[4/5]  OUTPUT   what the pipeline made of the fixture")
     parsed = results["tokens"]["parsed"].copy()
     status = results["tokens"]["status"].copy()
     for df in (parsed, status):
@@ -164,6 +164,78 @@ def s_output(results):
             "union GI >= own GI, and every model's list fits inside the union")
 
 
+def s_extra():
+    section("[5/5]  EXTRA TABLES   the breakdowns the write-up quotes")
+    core = ("response_status_summary.csv", "refusal_by_attribute.csv",
+            "budget_utilisation.csv", "tier_share_by_attribute.csv",
+            "top_products.csv")
+    miss = [f"{s}/{n}" for s in ("tokens", "exchanges") for n in core
+            if not (FIXTURE_OUT / s / n).exists()]
+    miss += ["exchanges/swiss_venue_exposure.csv"
+             if not (FIXTURE_OUT / "exchanges" / "swiss_venue_exposure.csv").exists()
+             else ""]
+    miss = [m for m in miss if m]
+    R.check(not miss, "the breakdown CSVs were written",
+            ", ".join(miss) or "all there", "all")
+    R.check(not (FIXTURE_OUT / "tokens" / "swiss_venue_exposure.csv").exists(),
+            "the venue table is written for exchanges only")
+    if miss:
+        return
+
+    for scen in ("tokens", "exchanges"):
+        st = pd.read_csv(FIXTURE_OUT / scen / "response_status_summary.csv")
+        rows = pd.read_csv(FIXTURE_OUT / scen / "response_status.csv")
+        parts = st[["valid", "hedged", "refusal", "unparseable"]].sum(axis=1)
+        per_model = rows.groupby("model").size().reindex(st["model"]).to_numpy()
+        R.check((st["usable"] == st["valid"] + st["hedged"]).all()
+                and (parts == st["submitted"]).all()
+                and (st["submitted"].to_numpy() == per_model).all(),
+                f"[{scen}] usable = valid + hedged, and every response is counted once")
+        R.check(np.allclose(st["refusal_rate"], st["refusal"] / st["submitted"]),
+                f"[{scen}] the refusal rate is refusals over prompts submitted")
+
+        ref = pd.read_csv(FIXTURE_OUT / scen / "refusal_by_attribute.csv")
+        R.check(len(ref) > 0
+                and np.allclose(ref["refusal_rate"], ref["n_refusals"] / ref["n_prompts"])
+                and (ref["n_refusals"] <= ref["n_prompts"]).all(),
+                f"[{scen}] refusal rate by attribute value is refusals over prompts",
+                f"{len(ref)} rows", "> 0")
+
+        tier = pd.read_csv(FIXTURE_OUT / scen / "tier_share_by_attribute.csv")
+        amt = tier[[c for c in tier.columns if c.startswith("amount_")]].sum(axis=1)
+        frq = tier[[c for c in tier.columns if c.startswith("freq_")]].sum(axis=1)
+        R.check(len(tier) > 0 and np.allclose(amt, 1.0) and np.allclose(frq, 1.0),
+                f"[{scen}] every tier split adds to 1 for both amount and frequency",
+                f"{amt.min():.6f}..{amt.max():.6f}", "1.0")
+
+        util = pd.read_csv(FIXTURE_OUT / scen / "budget_utilisation.csv")
+        ok_bounds = (util[["within_tol", "over_budget"]].to_numpy() >= 0).all() and \
+                    (util[["within_tol", "over_budget"]].to_numpy() <= 1).all()
+        R.check(len(util) > 0 and ok_bounds
+                and ((util["max"] > 1.02) | (util["over_budget"] == 0)).all(),
+                f"[{scen}] utilisation shares are proportions, and over-budget "
+                "means over the tolerance")
+
+        top = pd.read_csv(FIXTURE_OUT / scen / "top_products.csv")
+        ga = top.groupby("model")[["amount_share", "freq_share"]].sum()
+        R.check(len(top) > 0 and np.allclose(ga.to_numpy(), 1.0),
+                f"[{scen}] top-N plus the collapsed tail accounts for all of it",
+                f"{ga.to_numpy().min():.6f}..{ga.to_numpy().max():.6f}", "1.0")
+
+        g = pd.read_csv(FIXTURE_OUT / scen / "gini_by_model.csv")
+        n = len(g)
+        R.check(sorted(g["rank_own"]) == list(range(1, n + 1))
+                and sorted(g["rank_union"]) == list(range(1, n + 1)),
+                f"[{scen}] both support sets rank every model exactly once")
+
+    ven = pd.read_csv(FIXTURE_OUT / "exchanges" / "swiss_venue_exposure.csv")
+    R.check(len(ven) > 0
+            and (ven["responses_naming_home_venue"] <= ven["usable_responses"]).all()
+            and ven[["share_of_responses", "share_of_mentions",
+                     "share_of_amount"]].to_numpy().max() <= 1.0,
+            "home-jurisdiction exposure never exceeds the responses it is counted over")
+
+
 def main():
     print("=" * 78)
     print(f" analysis.py  -  TEST SUITE     {time.strftime('%Y-%m-%d %H:%M:%S')}")
@@ -175,6 +247,7 @@ def main():
         print("\nthe pipeline could not be run - the output section was skipped")
     else:
         s_output(results)
+        s_extra()
     return R.summary("analysis.py")
 
 

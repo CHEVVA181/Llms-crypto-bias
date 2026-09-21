@@ -45,6 +45,20 @@ not over each model's own list: scoring each model only on the products it happe
 name reverses the ranking, which makes the union the honest denominator. The hand-written
 Gini is cross-checked against a known-good implementation over random vectors.
 
+### Breakdowns
+
+The pooled index hides what the prompt actually moves, so four splits are computed
+alongside it. Response status separates valid, hedged, refused and unparseable answers,
+and the refusal rate is broken out by attribute value — a model that declines the crisis
+prompts drops exactly the responses whose mix would have been most unusual, so the
+missingness is informative rather than random. The tier mix is recomputed for every
+attribute value, which is where the conditioning shows up: the head of the distribution
+barely moves, the tail moves a lot. Exposure to venues inside the user's own
+jurisdiction is counted separately, since every prompt is denominated in Swiss francs
+and so states that jurisdiction unambiguously. And budget utilisation — allocated francs
+over the budget named in the prompt — is reported per model, because the allocation
+shares only mean something if the answers add up to what was asked.
+
 ### Provider-affiliation check
 
 The last step asks whether a model over-recommends assets or exchanges tied to its own

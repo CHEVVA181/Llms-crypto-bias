@@ -1,0 +1,5 @@
+﻿model,valid,hedged,refusal,unparseable,submitted,usable,refusal_rate
+GPT-5.5,719,0,0,0,719,719,0.0
+Claude Haiku 4.5,694,2,23,0,719,696,0.031988873435326845
+Gemini 3.6 Flash,719,0,0,0,719,719,0.0
+Grok 4.6,701,0,18,0,719,701,0.025034770514603615

@@ -495,12 +495,28 @@ def run_scenario(scen: str, db: pd.DataFrame, model_order: list) -> dict:
         return pd.DataFrame(rows).set_index("model").reindex(MODEL_ORDER).reset_index()
 
     gini_by_model = gini_rows(parsed)
+    #  Rank 1 = most concentrated.  The two support sets can disagree on the
+    #  ordering - a model with a narrow vocabulary looks equal under its own
+    #  support and concentrated under the union - so both ranks are recorded.
+    gini_by_model["rank_own"] = (gini_by_model["GI_amount_own"]
+                                 .rank(ascending=False, method="min").astype(int))
+    gini_by_model["rank_union"] = (gini_by_model["GI_amount_union"]
+                                   .rank(ascending=False, method="min").astype(int))
     save(gini_by_model, "gini_by_model.csv")
     print(f"\n=== Gini by model (balanced panel, {GINI_SUPPORT} support) ===")
     show = ["model", "n_products", "n_products_union",
             "GI_amount_paper", "GI_amount_pygini", "GI_freq_paper", "GI_freq_pygini",
             "GI_amount_own", "GI_freq_own"]
     print(gini_by_model[show].round(4).to_string(index=False))
+
+    print(f"\n=== Support set: own {PROD}s vs. the union "
+          "(rank 1 = most concentrated) ===")
+    print(gini_by_model[["model", "n_products", "GI_amount_own", "rank_own",
+                         "GI_amount_union", "rank_union"]]
+          .round(3).to_string(index=False))
+    if not gini_by_model["rank_own"].equals(gini_by_model["rank_union"]):
+        print("  !! the two supports imply different orderings - the union "
+              "column is the one to quote")
 
     ver = gini_by_model[["model"]].copy()
     ver["abs_diff_amount"] = (gini_by_model["GI_amount_paper"]
@@ -637,6 +653,187 @@ def run_scenario(scen: str, db: pd.DataFrame, model_order: list) -> dict:
     print(f"\n=== GI(amount) by attribute VALUE ({GINI_SUPPORT} support) ===")
     print(gini_val.groupby(["attribute", "value"])["GI_amount"].mean()
           .round(3).to_string())
+
+    ORDERED_VALUES = [(a, str(v)) for a, (_, order) in VALUE_COLS.items()
+                      for v in order]
+
+    #  Response status by model.  A refusal is an answer with no extractable
+    #  recommendation; a hedged answer carries caveats but still names
+    #  products and is kept.  Usable = valid + hedged, and is the denominator
+    #  of every allocation statistic below.
+    STATUS_ORDER = ["valid", "hedged", "refusal", "unparseable"]
+    status_summary = (status.groupby(["model", "status"]).size().unstack(fill_value=0)
+                      .reindex(index=MODEL_ORDER, columns=STATUS_ORDER, fill_value=0))
+    status_summary["submitted"] = status_summary[STATUS_ORDER].sum(axis=1)
+    status_summary["usable"] = status_summary["valid"] + status_summary["hedged"]
+    status_summary["refusal_rate"] = (status_summary["refusal"]
+                                      / status_summary["submitted"])
+    status_summary = status_summary.reset_index()
+    save(status_summary, "response_status_summary.csv")
+    print("\n=== Response status by model (share of prompts submitted) ===")
+    print(status_summary.assign(
+        refusal_rate=(status_summary["refusal_rate"] * 100).round(2))
+        .to_string(index=False))
+
+    #  Refusal is not uniform over the grid: if a model declines the crisis
+    #  prompts it also drops the responses whose tier mix would have been
+    #  most unusual, so the missingness is informative, not random.
+    st_attr = status.merge(
+        raw[["response_id", "risk_value", "term_value", "env_value"]],
+        on="response_id", how="left")
+    st_attr["is_refusal"] = st_attr["status"].eq("refusal")
+    rows = []
+    for model, sub in st_attr.groupby("model"):
+        for a, (col, order) in VALUE_COLS.items():
+            for val in order:
+                s = sub[sub[col] == val]
+                if s.empty:
+                    continue
+                rows.append({"model": model, "attribute": a, "value": str(val),
+                             "n_prompts": int(len(s)),
+                             "n_refusals": int(s["is_refusal"].sum()),
+                             "refusal_rate": float(s["is_refusal"].mean())})
+    refusal_attr = pd.DataFrame(rows)
+    save(refusal_attr, "refusal_by_attribute.csv")
+    decliners = [m for m in MODEL_ORDER
+                 if refusal_attr.loc[refusal_attr["model"] == m, "n_refusals"].sum() > 0]
+    if decliners:
+        print("\n=== Refusal rate by attribute value, % (models that decline) ===")
+        piv = (refusal_attr[refusal_attr["model"].isin(decliners)]
+               .pivot_table(index=["attribute", "value"], columns="model",
+                            values="refusal_rate")
+               .reindex(index=pd.MultiIndex.from_tuples(ORDERED_VALUES),
+                        columns=decliners))
+        print((piv * 100).round(1).to_string())
+    else:
+        print("\nno model refused a single prompt - refusal breakdown skipped")
+
+    #  Allocation discipline: where the prompt names a budget, does the answer
+    #  add up to it?  Not computed for answers written in another currency or
+    #  for prompts with no budget, which is why n is below the usable count.
+    #  The band a stated budget counts as met within.  EPS keeps a response
+    #  that lands exactly on the edge (u = 0.98) on the inside of it, where
+    #  binary floating point would otherwise push it out.
+    UTIL_TOL, UTIL_EPS = 0.02, 1e-9
+    util = status[status["budget_utilisation"].notna()]
+    rows = []
+    for model in MODEL_ORDER:
+        u = util.loc[util["model"] == model, "budget_utilisation"].astype(float)
+        if u.empty:
+            continue
+        rows.append({"model": model, "n": int(u.size),
+                     "median": float(u.median()), "mean": float(u.mean()),
+                     "within_tol": float((u.sub(1.0).abs()
+                                          <= UTIL_TOL + UTIL_EPS).mean()),
+                     "over_budget": float((u > 1.0 + UTIL_TOL + UTIL_EPS).mean()),
+                     "n_over_1": int((u > 1.0 + UTIL_EPS).sum()),
+                     "min": float(u.min()), "max": float(u.max())})
+    budget_util = pd.DataFrame(rows)
+    save(budget_util, "budget_utilisation.csv")
+    print("\n=== Budget utilisation on the responses that state a budget "
+          f"(within_tol = |1 - u| <= {UTIL_TOL:.0%}) ===")
+    print(budget_util.round(4).to_string(index=False) if len(budget_util)
+          else "  no response carries a usable budget")
+
+    #  The pooled tier split hides the conditioning: the head of the
+    #  distribution barely moves with the prompt, the tail moves a lot, and
+    #  the tail is where the tier mix lives.
+    rows = []
+    for model, sub in parsed.groupby("model"):
+        for a, (col, order) in VALUE_COLS.items():
+            for val in order:
+                s = sub[sub[col] == val]
+                if s.empty:
+                    continue
+                amt = s.groupby("tier")["share"].sum()
+                frq = s["tier"].value_counts()
+                amt = amt / amt.sum() if float(amt.sum()) else amt
+                frq = frq / frq.sum() if float(frq.sum()) else frq
+                rec = {"model": model, "attribute": a, "value": str(val),
+                       "n_responses": int(s["response_id"].nunique())}
+                for t in TIER_ORDER:
+                    rec[f"amount_{t}"] = float(amt.get(t, 0.0))
+                    rec[f"freq_{t}"] = float(frq.get(t, 0.0))
+                rows.append(rec)
+    tier_attr = pd.DataFrame(rows)
+    save(tier_attr, "tier_share_by_attribute.csv")
+    rsk = tier_attr[tier_attr["attribute"] == "risk"]
+    if len(rsk):
+        print(f"\n=== {cfg['tier_word'].title()} share of amount by stated "
+              "risk tolerance (%) ===")
+        show_rsk = (rsk.set_index(["model", "value"])[
+            [f"amount_{t}" for t in TIER_ORDER]]
+            .rename(columns=lambda c: c[len("amount_"):])
+            .reindex(pd.MultiIndex.from_product([MODEL_ORDER, RISK_ORDER]))
+            .dropna(how="all"))
+        print((show_rsk * 100).round(1).to_string())
+
+    #  Every prompt is in Swiss francs, which states the user's jurisdiction.
+    #  Does the model ever name a venue inside it?
+    HOME_TIER = "Swiss regulated"
+    if HOME_TIER in TIER_ORDER:
+        rows = []
+        for model in MODEL_ORDER:
+            sub = parsed[parsed["model"] == model]
+            if sub.empty:
+                continue
+            home = sub[sub["tier"] == HOME_TIER]
+            usable = int(sub["response_id"].nunique())
+            tot_amt = float(sub["share"].sum())
+            rows.append({
+                "model": model,
+                "usable_responses": usable,
+                "responses_naming_home_venue": int(home["response_id"].nunique()),
+                "share_of_responses": (home["response_id"].nunique() / usable
+                                       if usable else np.nan),
+                "share_of_mentions": len(home) / len(sub) if len(sub) else np.nan,
+                "share_of_amount": (float(home["share"].sum()) / tot_amt
+                                    if tot_amt else np.nan),
+                "n_home_venues_named": int(home["product"].nunique()),
+            })
+        home_exposure = pd.DataFrame(rows)
+        save(home_exposure, "swiss_venue_exposure.csv")
+        print(f"\n=== Exposure to {HOME_TIER} venues (the currency of every "
+              "prompt names the jurisdiction) ===")
+        print(home_exposure.assign(
+            share_of_responses=(home_exposure["share_of_responses"] * 100).round(1),
+            share_of_mentions=(home_exposure["share_of_mentions"] * 100).round(2),
+            share_of_amount=(home_exposure["share_of_amount"] * 100).round(2))
+            .to_string(index=False))
+
+    #  Top-N by allocated amount with the rest collapsed into one row, so the
+    #  table adds to 100% and the length of the tail stays visible.
+    TOP_N = 10
+    rows = []
+    for model in MODEL_ORDER:
+        sub = (freq[freq["model"] == model]
+               .sort_values("amount_share", ascending=False))
+        if sub.empty:
+            continue
+        for i, r in enumerate(sub.head(TOP_N).itertuples(index=False), start=1):
+            rows.append({"model": model, "rank": i, "product": r.product,
+                         "code": r.code, "category": r.category, "tier": r.tier,
+                         "amount_share": float(r.amount_share),
+                         "freq_share": float(r.freq_share)})
+        tail = sub.iloc[TOP_N:]
+        if len(tail):
+            rows.append({"model": model, "rank": TOP_N + 1,
+                         "product": f"Other ({len(tail)} {PROD}s)",
+                         "code": None, "category": None, "tier": None,
+                         "amount_share": float(tail["amount_share"].sum()),
+                         "freq_share": float(tail["freq_share"].sum())})
+    top_products = pd.DataFrame(rows)
+    save(top_products, "top_products.csv")
+    print(f"\n=== Top-{TOP_N} {PROD}s by allocated amount, tail collapsed ===")
+    for model in MODEL_ORDER:
+        sub = top_products[top_products["model"] == model]
+        if sub.empty:
+            continue
+        print(f"\n--- {model} ---")
+        print(sub[["rank", "product", "code", "tier", "amount_share", "freq_share"]]
+              .to_string(index=False, formatters={
+                  "amount_share": "{:.2%}".format,
+                  "freq_share": "{:.2%}".format}))
 
     print("\nwriting figures...")
 

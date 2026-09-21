@@ -1,0 +1,73 @@
+﻿model,attribute,value,n_prompts,n_refusals,refusal_rate
+Claude Haiku 4.5,budget,100,80,2,0.025
+Claude Haiku 4.5,budget,1000,80,4,0.05
+Claude Haiku 4.5,budget,10000,80,6,0.075
+Claude Haiku 4.5,budget,20000,80,6,0.075
+Claude Haiku 4.5,budget,30000,80,7,0.0875
+Claude Haiku 4.5,budget,40000,80,9,0.1125
+Claude Haiku 4.5,budget,50000,80,11,0.1375
+Claude Haiku 4.5,budget,100000,80,10,0.125
+Claude Haiku 4.5,risk,risk-averse,180,22,0.12222222222222222
+Claude Haiku 4.5,risk,risk-neutral,180,4,0.022222222222222223
+Claude Haiku 4.5,risk,risk-seeking,180,5,0.027777777777777776
+Claude Haiku 4.5,term,less than one year,180,43,0.2388888888888889
+Claude Haiku 4.5,term,one to three years,180,8,0.044444444444444446
+Claude Haiku 4.5,term,three to ten years,180,8,0.044444444444444446
+Claude Haiku 4.5,environment,crisis,144,36,0.25
+Claude Haiku 4.5,environment,recession,144,19,0.13194444444444445
+Claude Haiku 4.5,environment,recovery,144,0,0.0
+Claude Haiku 4.5,environment,expansion,144,2,0.013888888888888888
+GPT-5.5,budget,100,80,0,0.0
+GPT-5.5,budget,1000,80,0,0.0
+GPT-5.5,budget,10000,80,0,0.0
+GPT-5.5,budget,20000,80,0,0.0
+GPT-5.5,budget,30000,80,0,0.0
+GPT-5.5,budget,40000,80,0,0.0
+GPT-5.5,budget,50000,80,0,0.0
+GPT-5.5,budget,100000,80,0,0.0
+GPT-5.5,risk,risk-averse,180,0,0.0
+GPT-5.5,risk,risk-neutral,180,0,0.0
+GPT-5.5,risk,risk-seeking,180,0,0.0
+GPT-5.5,term,less than one year,180,0,0.0
+GPT-5.5,term,one to three years,180,0,0.0
+GPT-5.5,term,three to ten years,180,0,0.0
+GPT-5.5,environment,crisis,144,0,0.0
+GPT-5.5,environment,recession,144,0,0.0
+GPT-5.5,environment,recovery,144,0,0.0
+GPT-5.5,environment,expansion,144,0,0.0
+Gemini 3.6 Flash,budget,100,80,0,0.0
+Gemini 3.6 Flash,budget,1000,80,0,0.0
+Gemini 3.6 Flash,budget,10000,80,0,0.0
+Gemini 3.6 Flash,budget,20000,80,0,0.0
+Gemini 3.6 Flash,budget,30000,80,0,0.0
+Gemini 3.6 Flash,budget,40000,80,0,0.0
+Gemini 3.6 Flash,budget,50000,80,0,0.0
+Gemini 3.6 Flash,budget,100000,80,0,0.0
+Gemini 3.6 Flash,risk,risk-averse,180,0,0.0
+Gemini 3.6 Flash,risk,risk-neutral,180,0,0.0
+Gemini 3.6 Flash,risk,risk-seeking,180,0,0.0
+Gemini 3.6 Flash,term,less than one year,180,0,0.0
+Gemini 3.6 Flash,term,one to three years,180,0,0.0
+Gemini 3.6 Flash,term,three to ten years,180,0,0.0
+Gemini 3.6 Flash,environment,crisis,144,0,0.0
+Gemini 3.6 Flash,environment,recession,144,0,0.0
+Gemini 3.6 Flash,environment,recovery,144,0,0.0
+Gemini 3.6 Flash,environment,expansion,144,0,0.0
+Grok 4.6,budget,100,80,7,0.0875
+Grok 4.6,budget,1000,80,19,0.2375
+Grok 4.6,budget,10000,80,19,0.2375
+Grok 4.6,budget,20000,80,18,0.225
+Grok 4.6,budget,30000,80,18,0.225
+Grok 4.6,budget,40000,80,23,0.2875
+Grok 4.6,budget,50000,80,23,0.2875
+Grok 4.6,budget,100000,80,22,0.275
+Grok 4.6,risk,risk-averse,180,32,0.17777777777777778
+Grok 4.6,risk,risk-neutral,180,41,0.22777777777777777
+Grok 4.6,risk,risk-seeking,180,43,0.2388888888888889
+Grok 4.6,term,less than one year,180,56,0.3111111111111111
+Grok 4.6,term,one to three years,180,52,0.28888888888888886
+Grok 4.6,term,three to ten years,180,41,0.22777777777777777
+Grok 4.6,environment,crisis,144,45,0.3125
+Grok 4.6,environment,recession,144,41,0.2847222222222222
+Grok 4.6,environment,recovery,144,23,0.1597222222222222
+Grok 4.6,environment,expansion,144,36,0.25
